@@ -1,5 +1,6 @@
 package works.weave.socks.shipping.configuration;
 
+import brave.Tracing;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -19,6 +20,22 @@ public class RabbitMqConfiguration {
 
     @Value("${spring.rabbitmq.host}")
     private String host;
+
+     @Bean
+     public Tracing tracing() {
+	 return Tracing.newBuilder()
+	     .localServiceName("spring-amqp-producer")
+	     .build();
+     }
+
+     @Bean
+     public SpringRabbitTracing springRabbitTracing(Tracing tracing) {
+         return SpringRabbitTracing.newBuilder(tracing)
+	     .remoteServiceName("my-mq-service")
+	     .build();
+     }
+
+
 
     @Bean
     public ConnectionFactory connectionFactory() {
@@ -41,8 +58,9 @@ public class RabbitMqConfiguration {
     }
 
     @Bean
-    public RabbitTemplate rabbitTemplate() {
-        RabbitTemplate template = new RabbitTemplate(connectionFactory());
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory,
+     SpringRabbitTracing springRabbitTracing) {
+	RabbitTemplate template = springRabbitTracing.newRabbitTemplate(connectionFactory);
         template.setMessageConverter(jsonMessageConverter());
         return template;
     }
